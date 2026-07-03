@@ -1,4 +1,4 @@
-﻿# MediCart
+# MediCart
 
 MediCart is a full-stack e-commerce and medical supply management application. The project is split into a standalone Next.js frontend and a separate Next.js API backend to allow for independent deployments (e.g., Vercel for the frontend and Render for the backend).
 
@@ -24,7 +24,7 @@ JWT_SECRET="medicart-secret-key-2024"
 \\\
 
 *(Note: The frontend does not strictly require a .env file for local development because 
-ext.config.ts automatically proxies /api requests to localhost:3001).*
+next.config.ts automatically proxies /api requests to localhost:3001).*
 
 ### 2. Install Dependencies
 
