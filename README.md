@@ -1,4 +1,4 @@
-﻿# MediCart
+# MediCart
 
 MediCart is a full-stack e-commerce and medical supply management application. The project is split into a standalone Next.js frontend and a separate Next.js API backend to allow for independent deployments (e.g., Vercel for the frontend and Render for the backend).
 
@@ -6,6 +6,19 @@ MediCart is a full-stack e-commerce and medical supply management application. T
 
 - **/frontend**: A Next.js application containing all UI components, pages, and React contexts. It is configured to proxy API requests to the backend during local development.
 - **/backend**: A Next.js server configured strictly as an API backend. It handles all database connections (via PostgreSQL and Drizzle ORM) and serves API routes.
+
+## Features
+
+**For Users:**
+- **Wishlist & Subscriptions:** Save favorite medicines and subscribe for auto-refills.
+- **Pill Tracker:** Manage and track daily medication schedules with reminders.
+- **Family Profiles:** Keep track of family members' health records and allergies.
+- **Prescription Uploads & Chat:** Upload prescriptions for review and chat directly with pharmacists.
+
+**For Administrators:**
+- **Purchase Orders:** Draft and manage supplier restock orders directly from the dashboard.
+- **Invoice Generation:** Generate and print PDF invoices for customer orders.
+- **Order & User Management:** Manage all e-commerce operations, order statuses, and verify prescriptions.
 
 ## Prerequisites
 
