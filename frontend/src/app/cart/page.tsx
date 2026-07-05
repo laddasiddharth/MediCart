@@ -21,6 +21,27 @@ export default function CartPage() {
     pincode: "",
     paymentMethod: "cash_on_delivery" as string,
   });
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [prescriptionId, setPrescriptionId] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+
+  const requiresPrescription = items.some((item) => item.medicinePrescriptionRequired);
+
+  const openCheckout = async () => {
+    setShowCheckout(true);
+    setCheckoutError("");
+    if (requiresPrescription) {
+      const res = await fetch("/api/prescriptions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const approved = (data.data || []).filter((p: any) => p.status === "approved");
+        setPrescriptions(approved);
+        if (approved.length > 0) setPrescriptionId(approved[0].id.toString());
+      }
+    }
+  };
 
   const tax = total * 0.05;
   const delivery = total > 500 ? 0 : 40;
@@ -29,7 +50,13 @@ export default function CartPage() {
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) { router.push("/auth"); return; }
+    if (requiresPrescription && !prescriptionId) {
+      setCheckoutError("Please select an approved prescription to proceed.");
+      return;
+    }
+
     setCheckoutLoading(true);
+    setCheckoutError("");
 
     const res = await fetch("/api/orders", {
       method: "POST",
@@ -41,12 +68,16 @@ export default function CartPage() {
         deliveryCity: form.city,
         deliveryState: form.state,
         deliveryPincode: form.pincode,
+        prescriptionId: prescriptionId ? parseInt(prescriptionId) : undefined,
       }),
     });
 
     if (res.ok) {
       const order = await res.json();
       router.push(`/orders/${order.id}?success=true`);
+    } else {
+      const err = await res.json();
+      setCheckoutError(err.error || "Failed to place order");
     }
     setCheckoutLoading(false);
   };
@@ -189,7 +220,7 @@ export default function CartPage() {
                 </div>
               </div>
               <button
-                onClick={() => setShowCheckout(true)}
+                onClick={openCheckout}
                 className="w-full mt-4 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
               >
                 Proceed to Checkout <ArrowRight size={16} />
@@ -275,7 +306,44 @@ export default function CartPage() {
                   </select>
                 </div>
 
-                <div className="bg-gray-50 rounded-xl p-4 text-sm">
+                {requiresPrescription && (
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mt-4">
+                    <label className="text-xs font-medium text-blue-800 mb-2 block">
+                      <FileText size={14} className="inline mr-1" />
+                      Select Approved Prescription *
+                    </label>
+                    {prescriptions.length > 0 ? (
+                      <select
+                        value={prescriptionId}
+                        onChange={(e) => setPrescriptionId(e.target.value)}
+                        required
+                        className="w-full border border-blue-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        {prescriptions.map((rx) => (
+                          <option key={rx.id} value={rx.id}>
+                            {rx.fileName || "Prescription"} (Approved)
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="text-sm text-blue-700">
+                        You have no approved prescriptions. Please{" "}
+                        <Link href="/prescriptions" className="underline font-semibold">
+                          upload one
+                        </Link>{" "}
+                        and wait for approval to buy these items.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {checkoutError && (
+                  <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-100">
+                    {checkoutError}
+                  </div>
+                )}
+
+                <div className="bg-gray-50 rounded-xl p-4 text-sm mt-4">
                   <div className="flex justify-between font-bold text-gray-900">
                     <span>Order Total</span>
                     <span>₹{finalTotal.toFixed(2)}</span>

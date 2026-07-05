@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     } else if (sortBy === "newest") {
       orderExpr = desc(medicines.createdAt);
     } else {
-      orderExpr = asc(medicines.name);
+      orderExpr = sortOrder === "desc" ? desc(medicines.name) : asc(medicines.name);
     }
 
     const whereClause = and(...conditions);

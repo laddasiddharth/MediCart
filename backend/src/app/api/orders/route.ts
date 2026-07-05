@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { orders, orderItems, cartItems, carts, medicines, users } from "@/db/schema";
+import { orders, orderItems, cartItems, carts, medicines, users, prescriptions } from "@/db/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "@/lib/middleware";
 
@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
 
     let totalAmount = 0;
     let discountAmount = 0;
+    let requiresPrescription = false;
     const orderItemsData = [];
 
     for (const item of items) {
@@ -105,6 +106,10 @@ export async function POST(req: NextRequest) {
       totalAmount += total;
       discountAmount += discountOnItem;
 
+      if (medicine.prescriptionRequired) {
+        requiresPrescription = true;
+      }
+
       orderItemsData.push({
         medicineId: item.medicineId,
         quantity: item.quantity,
@@ -117,6 +122,19 @@ export async function POST(req: NextRequest) {
     const taxAmount = totalAmount * 0.05;
     const deliveryCharge = totalAmount > 500 ? 0 : 40;
     const finalAmount = totalAmount + taxAmount + deliveryCharge;
+
+    if (requiresPrescription) {
+      if (!prescriptionId) {
+        return NextResponse.json({ error: "Prescription required for one or more items." }, { status: 400 });
+      }
+      const [prescription] = await db.select().from(prescriptions).where(eq(prescriptions.id, prescriptionId));
+      if (!prescription || prescription.userId !== user.userId) {
+        return NextResponse.json({ error: "Invalid prescription." }, { status: 400 });
+      }
+      if (prescription.status !== "approved") {
+        return NextResponse.json({ error: "Your prescription must be approved to place this order." }, { status: 400 });
+      }
+    }
 
     const estimatedDelivery = new Date();
     estimatedDelivery.setDate(estimatedDelivery.getDate() + 5);

@@ -124,6 +124,7 @@ function ShopContent() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [fetchTrigger, setFetchTrigger] = useState(0);
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("categoryId") || "");
@@ -163,7 +164,7 @@ function ShopContent() {
 
   useEffect(() => {
     fetchMedicines();
-  }, [page, sortBy, sortOrder, selectedCategory, prescriptionFilter, inStock]);
+  }, [page, sortBy, sortOrder, selectedCategory, prescriptionFilter, inStock, fetchTrigger]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +180,7 @@ function ShopContent() {
     setMaxPrice("");
     setInStock(false);
     setPage(1);
+    setFetchTrigger(prev => prev + 1);
   };
 
   return (
