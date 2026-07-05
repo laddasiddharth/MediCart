@@ -4,6 +4,32 @@ import { prescriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "@/lib/middleware";
 
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const authResult = requireAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+  const { user } = authResult;
+
+  try {
+    const { id } = await params;
+    
+    const data = await db.select().from(prescriptions).where(eq(prescriptions.id, parseInt(id)));
+
+    if (data.length === 0) {
+      return NextResponse.json({ error: "Prescription not found" }, { status: 404 });
+    }
+
+    const prescription = data[0];
+    if (user.role === "user" && prescription.userId !== user.userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    return NextResponse.json(prescription);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authResult = requireRole(req, ["admin", "pharmacist"]);
   if (authResult instanceof NextResponse) return authResult;

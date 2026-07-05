@@ -180,6 +180,12 @@ export default function PrescriptionsPage() {
                     <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border ${status.color} whitespace-nowrap`}>
                       {status.icon} {status.label}
                     </span>
+                    <button
+                      onClick={() => router.push(`/prescriptions/${rx.id}`)}
+                      className="ml-4 text-green-600 hover:text-green-700 font-medium text-sm transition underline"
+                    >
+                      View & Chat
+                    </button>
                   </div>
                 </div>
               );

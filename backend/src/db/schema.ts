@@ -9,6 +9,7 @@ import {
   timestamp,
   pgEnum,
   date,
+  time,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -223,6 +224,91 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Wishlists
+export const wishlists = pgTable("wishlists", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  medicineId: integer("medicine_id")
+    .notNull()
+    .references(() => medicines.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Subscriptions (Auto-Refill)
+export const subscriptionFrequencyEnum = pgEnum("subscription_frequency", ["weekly", "monthly", "bimonthly", "quarterly"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "paused", "cancelled"]);
+
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  medicineId: integer("medicine_id").notNull().references(() => medicines.id),
+  quantity: integer("quantity").notNull().default(1),
+  frequency: subscriptionFrequencyEnum("frequency").notNull().default("monthly"),
+  status: subscriptionStatusEnum("status").notNull().default("active"),
+  nextDeliveryDate: date("next_delivery_date"),
+  address: text("address"),
+  paymentMethod: paymentMethodEnum("payment_method").notNull().default("cash_on_delivery"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Medicine Reminders (Pill Tracker)
+export const reminders = pgTable("reminders", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  medicineId: integer("medicine_id").references(() => medicines.id),
+  medicineName: varchar("medicine_name", { length: 255 }).notNull(),
+  dosage: varchar("dosage", { length: 100 }),
+  reminderTime: time("reminder_time").notNull(),
+  daysOfWeek: varchar("days_of_week", { length: 50 }).notNull().default("1,2,3,4,5,6,7"),
+  isActive: boolean("is_active").notNull().default(true),
+  note: text("note"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Family Members
+export const familyMembers = pgTable("family_members", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  relation: varchar("relation", { length: 100 }),
+  dateOfBirth: date("date_of_birth"),
+  bloodGroup: varchar("blood_group", { length: 10 }),
+  allergies: text("allergies"),
+  medicalHistory: text("medical_history"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Purchase Orders (Supplier Management)
+export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "sent", "received", "cancelled"]);
+
+export const purchaseOrders = pgTable("purchase_orders", {
+  id: serial("id").primaryKey(),
+  supplierId: integer("supplier_id").references(() => suppliers.id),
+  medicineId: integer("medicine_id").references(() => medicines.id),
+  quantity: integer("quantity").notNull(),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }),
+  status: purchaseOrderStatusEnum("status").notNull().default("draft"),
+  notes: text("notes"),
+  createdBy: integer("created_by").references(() => users.id),
+  expectedDelivery: date("expected_delivery"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Prescription Messages (Pharmacist-Customer Chat)
+export const prescriptionMessages = pgTable("prescription_messages", {
+  id: serial("id").primaryKey(),
+  prescriptionId: integer("prescription_id").notNull().references(() => prescriptions.id),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
@@ -230,6 +316,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   cart: many(carts),
   reviews: many(reviews),
   notifications: many(notifications),
+  wishlists: many(wishlists),
 }));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
@@ -249,6 +336,7 @@ export const medicinesRelations = relations(medicines, ({ one, many }) => ({
   cartItems: many(cartItems),
   inventoryLogs: many(inventoryLogs),
   reviews: many(reviews),
+  wishlistedBy: many(wishlists),
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
@@ -331,4 +419,40 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     fields: [notifications.userId],
     references: [users.id],
   }),
+}));
+
+export const wishlistsRelations = relations(wishlists, ({ one }) => ({
+  user: one(users, {
+    fields: [wishlists.userId],
+    references: [users.id],
+  }),
+  medicine: one(medicines, {
+    fields: [wishlists.medicineId],
+    references: [medicines.id],
+  }),
+}));
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(users, { fields: [subscriptions.userId], references: [users.id] }),
+  medicine: one(medicines, { fields: [subscriptions.medicineId], references: [medicines.id] }),
+}));
+
+export const remindersRelations = relations(reminders, ({ one }) => ({
+  user: one(users, { fields: [reminders.userId], references: [users.id] }),
+  medicine: one(medicines, { fields: [reminders.medicineId], references: [medicines.id] }),
+}));
+
+export const familyMembersRelations = relations(familyMembers, ({ one }) => ({
+  user: one(users, { fields: [familyMembers.userId], references: [users.id] }),
+}));
+
+export const purchaseOrdersRelations = relations(purchaseOrders, ({ one }) => ({
+  supplier: one(suppliers, { fields: [purchaseOrders.supplierId], references: [suppliers.id] }),
+  medicine: one(medicines, { fields: [purchaseOrders.medicineId], references: [medicines.id] }),
+  createdByUser: one(users, { fields: [purchaseOrders.createdBy], references: [users.id] }),
+}));
+
+export const prescriptionMessagesRelations = relations(prescriptionMessages, ({ one }) => ({
+  prescription: one(prescriptions, { fields: [prescriptionMessages.prescriptionId], references: [prescriptions.id] }),
+  sender: one(users, { fields: [prescriptionMessages.senderId], references: [users.id] }),
 }));

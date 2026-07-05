@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 import {
   ShoppingCart,
   User,
@@ -18,11 +19,14 @@ import {
   Home,
   Pill,
   FileText,
+  Heart,
+  CalendarClock,
 } from "lucide-react";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const { itemCount } = useCart();
+  const { wishlistIds } = useWishlist();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -83,6 +87,15 @@ export default function Navbar() {
 
             {user ? (
               <>
+                <Link href="/wishlist" className="relative p-2 text-gray-600 hover:text-red-500 transition">
+                  <Heart size={20} />
+                  {wishlistIds.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {wishlistIds.length > 99 ? "99+" : wishlistIds.length}
+                    </span>
+                  )}
+                </Link>
+
                 <Link href="/cart" className="relative p-2 text-gray-600 hover:text-green-600 transition">
                   <ShoppingCart size={20} />
                   {itemCount > 0 && (
@@ -123,6 +136,20 @@ export default function Navbar() {
                         onClick={() => setUserMenuOpen(false)}
                       >
                         <Package size={15} /> My Orders
+                      </Link>
+                      <Link
+                        href="/subscriptions"
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        <CalendarClock size={15} /> Subscriptions
+                      </Link>
+                      <Link
+                        href="/reminders"
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        <Bell size={15} /> Pill Tracker
                       </Link>
                       <Link
                         href="/prescriptions"
@@ -202,11 +229,20 @@ export default function Navbar() {
             </Link>
             {user ? (
               <>
+                <Link href="/wishlist" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>
+                  <Heart size={16} /> Wishlist {wishlistIds.length > 0 && <span className="bg-red-500 text-white text-xs rounded-full px-1.5">{wishlistIds.length}</span>}
+                </Link>
                 <Link href="/cart" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>
                   <ShoppingCart size={16} /> Cart {itemCount > 0 && <span className="bg-green-500 text-white text-xs rounded-full px-1.5">{itemCount}</span>}
                 </Link>
                 <Link href="/orders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>
                   <Package size={16} /> Orders
+                </Link>
+                <Link href="/subscriptions" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>
+                  <CalendarClock size={16} /> Subscriptions
+                </Link>
+                <Link href="/reminders" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>
+                  <Bell size={16} /> Pill Tracker
                 </Link>
                 <Link href="/prescriptions" className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>
                   <FileText size={16} /> Prescriptions

@@ -11,7 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   TrendingUp, Package, Users, AlertTriangle, FileText, DollarSign,
   ShoppingBag, Clock, ChevronRight, Activity, Archive, Pill,
-  ArrowUp, ArrowDown, RefreshCw
+  ArrowUp, ArrowDown, RefreshCw, Truck
 } from "lucide-react";
 
 interface Analytics {
@@ -200,6 +200,9 @@ export default function AdminDashboard() {
               </Link>
               <Link href="/admin/prescriptions" className="border border-gray-200 bg-white text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition flex items-center gap-1.5">
                 <FileText size={15} /> Prescriptions
+              </Link>
+              <Link href="/admin/purchase-orders" className="border border-gray-200 bg-white text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50 transition flex items-center gap-1.5">
+                <Truck size={15} /> Purchase Orders
               </Link>
             </div>
           </div>

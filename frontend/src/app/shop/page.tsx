@@ -4,9 +4,10 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Search, Filter, Star, ShoppingCart, FileText, ChevronLeft, ChevronRight, SlidersHorizontal, X } from "lucide-react";
+import { Search, Filter, Star, ShoppingCart, FileText, ChevronLeft, ChevronRight, SlidersHorizontal, X, Heart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 interface Medicine {
   id: number;
@@ -33,12 +34,23 @@ interface Category {
 function MedicineCard({ medicine }: { medicine: Medicine }) {
   const { addItem } = useCart();
   const { user } = useAuth();
+  const { wishlistIds, toggleWishlist } = useWishlist();
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   const price = parseFloat(medicine.price);
   const discount = parseFloat(medicine.discountPercent || "0");
   const discountedPrice = price * (1 - discount / 100);
+  const isWishlisted = wishlistIds.includes(medicine.id);
+
+  const handleWishlist = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user) { window.location.href = "/auth"; return; }
+    setWishlistLoading(true);
+    await toggleWishlist(medicine.id);
+    setWishlistLoading(false);
+  };
 
   const handleAdd = async () => {
     if (!user) { window.location.href = "/auth"; return; }
@@ -57,13 +69,20 @@ function MedicineCard({ medicine }: { medicine: Medicine }) {
           alt={medicine.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
+        <button
+          onClick={handleWishlist}
+          disabled={wishlistLoading}
+          className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition disabled:opacity-50"
+        >
+          <Heart size={16} className={isWishlisted ? "fill-red-500 text-red-500" : "text-gray-500"} />
+        </button>
         {discount > 0 && (
           <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
             -{discount}%
           </span>
         )}
         {medicine.prescriptionRequired && (
-          <span className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+          <span className="absolute top-10 right-2 bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
             <FileText size={10} /> Rx
           </span>
         )}

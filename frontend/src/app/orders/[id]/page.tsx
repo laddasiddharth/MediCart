@@ -5,7 +5,8 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/context/AuthContext";
-import { Package, CheckCircle, Truck, Clock, XCircle, MapPin, CreditCard, ArrowLeft } from "lucide-react";
+import { Package, CheckCircle, Truck, Clock, XCircle, MapPin, CreditCard, ArrowLeft, Printer } from "lucide-react";
+import { generateInvoicePDF } from "@/lib/pdfUtils";
 
 interface OrderItem {
   id: number;
@@ -117,6 +118,13 @@ function OrderDetailContent() {
           }`}>
             {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
           </span>
+          <div className="flex-1"></div>
+          <button
+            onClick={() => generateInvoicePDF(order, order.items)}
+            className="flex items-center gap-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition"
+          >
+            <Printer size={16} /> Print Invoice
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -6,9 +6,10 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
+import { useWishlist } from "@/context/WishlistContext";
 import {
   Star, ShoppingCart, FileText, ChevronLeft, Package, AlertCircle,
-  CheckCircle, Clock, Info, Pill, Tag, Hash
+  CheckCircle, Clock, Info, Pill, Tag, Hash, Heart, CalendarClock, X
 } from "lucide-react";
 
 interface Medicine {
@@ -43,13 +44,21 @@ export default function MedicinePage() {
   const params = useParams();
   const router = useRouter();
   const { addItem } = useCart();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const { wishlistIds, toggleWishlist } = useWishlist();
   const [medicine, setMedicine] = useState<Medicine | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // Subscription states
+  const [showSubModal, setShowSubModal] = useState(false);
+  const [subFrequency, setSubFrequency] = useState("monthly");
+  const [subAddress, setSubAddress] = useState("");
+  const [subscribing, setSubscribing] = useState(false);
 
   useEffect(() => {
     const id = params.id;
@@ -67,6 +76,51 @@ export default function MedicinePage() {
     setAdded(true);
     setAdding(false);
     setTimeout(() => setAdded(false), 2000);
+  };
+
+  const handleWishlist = async () => {
+    if (!user) { router.push("/auth"); return; }
+    if (!medicine) return;
+    setWishlistLoading(true);
+    await toggleWishlist(medicine.id);
+    setWishlistLoading(false);
+  };
+
+  const handleSubscribe = async () => {
+    if (!user) { router.push("/auth"); return; }
+    if (!medicine) return;
+    if (!subAddress.trim()) {
+      alert("Please enter a delivery address");
+      return;
+    }
+    setSubscribing(true);
+    try {
+      const res = await fetch("/api/subscriptions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          medicineId: medicine.id,
+          quantity,
+          frequency: subFrequency,
+          address: subAddress,
+        }),
+      });
+      
+      if (res.ok) {
+        alert("Subscription created successfully!");
+        setShowSubModal(false);
+      } else {
+        const err = await res.json();
+        alert(`Error: ${err.error || "Failed to create subscription"}`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("An error occurred");
+    }
+    setSubscribing(false);
   };
 
   if (loading) {
@@ -154,10 +208,21 @@ export default function MedicinePage() {
               )}
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">{medicine.name}</h1>
-            {medicine.genericName && (
-              <p className="text-gray-500 mb-1 italic">Generic: {medicine.genericName}</p>
-            )}
+            <div className="flex items-start justify-between gap-4 mb-1">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">{medicine.name}</h1>
+                {medicine.genericName && (
+                  <p className="text-gray-500 italic">Generic: {medicine.genericName}</p>
+                )}
+              </div>
+              <button
+                onClick={handleWishlist}
+                disabled={wishlistLoading}
+                className="p-3 bg-gray-50 hover:bg-gray-100 rounded-full transition shrink-0 disabled:opacity-50"
+              >
+                <Heart size={20} className={wishlistIds.includes(medicine.id) ? "fill-red-500 text-red-500" : "text-gray-500"} />
+              </button>
+            </div>
             <p className="text-gray-600 mb-4">{medicine.brand} | {medicine.manufacturer}</p>
 
             {/* Rating */}
@@ -231,7 +296,7 @@ export default function MedicinePage() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 mb-3">
               <button
                 onClick={handleAddToCart}
                 disabled={adding || medicine.stock === 0}
@@ -244,11 +309,23 @@ export default function MedicinePage() {
               </button>
               <Link
                 href="/cart"
-                className="border-2 border-green-500 text-green-600 hover:bg-green-50 px-5 py-3 rounded-xl font-semibold transition"
+                className="border-2 border-green-500 text-green-600 hover:bg-green-50 px-5 py-3 rounded-xl font-semibold transition flex items-center justify-center"
               >
                 Buy Now
               </Link>
             </div>
+            
+            <button
+              onClick={() => {
+                if (!user) { router.push("/auth"); return; }
+                setShowSubModal(true);
+              }}
+              disabled={medicine.stock === 0}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold border-2 border-indigo-500 text-indigo-600 hover:bg-indigo-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <CalendarClock size={18} />
+              Subscribe & Save (Auto-Refill)
+            </button>
 
             {/* Info */}
             <div className="grid grid-cols-2 gap-3 mt-6">
@@ -301,6 +378,81 @@ export default function MedicinePage() {
           </div>
         </div>
       </div>
+
+      {/* Subscription Modal */}
+      {showSubModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 relative overflow-hidden">
+            <button
+              onClick={() => setShowSubModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-50 p-2 rounded-full transition"
+            >
+              <X size={18} />
+            </button>
+            
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                <CalendarClock size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Subscribe & Save</h3>
+                <p className="text-sm text-gray-500">Never run out of your medication.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Item</label>
+                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm">{medicine.name}</p>
+                    <p className="text-xs text-gray-500">Qty: {quantity}</p>
+                  </div>
+                  <p className="font-bold text-indigo-600">₹{(discountedPrice * quantity).toFixed(2)}/delivery</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Frequency</label>
+                <select
+                  value={subFrequency}
+                  onChange={(e) => setSubFrequency(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                >
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="bimonthly">Every 2 Months</option>
+                  <option value="quarterly">Every 3 Months</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Address</label>
+                <textarea
+                  value={subAddress}
+                  onChange={(e) => setSubAddress(e.target.value)}
+                  placeholder="Enter complete delivery address..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
+                />
+              </div>
+
+              <div className="bg-blue-50 text-blue-700 p-3 rounded-xl text-xs flex gap-2">
+                <Info size={16} className="shrink-0" />
+                <p>Payment will be collected as Cash on Delivery for each auto-refill delivery.</p>
+              </div>
+
+              <button
+                onClick={handleSubscribe}
+                disabled={subscribing || !subAddress.trim()}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition disabled:opacity-50"
+              >
+                {subscribing ? "Setting up..." : "Start Subscription"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

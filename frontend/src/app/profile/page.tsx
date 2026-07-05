@@ -4,8 +4,18 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/context/AuthContext";
-import { User, Mail, Phone, MapPin, Save, Edit2, Package, FileText, Shield } from "lucide-react";
+import { User, Mail, Phone, MapPin, Save, Edit2, Package, FileText, Shield, Users, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
+
+interface FamilyMember {
+  id: number;
+  name: string;
+  relation: string | null;
+  dateOfBirth: string | null;
+  bloodGroup: string | null;
+  allergies: string | null;
+  medicalHistory: string | null;
+}
 
 interface UserProfile {
   id: number;
@@ -29,6 +39,12 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", address: "", city: "", state: "", pincode: "" });
   const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  // Family Members State
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [showFamilyModal, setShowFamilyModal] = useState(false);
+  const [familyForm, setFamilyForm] = useState({ name: "", relation: "", dateOfBirth: "", bloodGroup: "", allergies: "", medicalHistory: "" });
+  const [savingFamily, setSavingFamily] = useState(false);
 
   useEffect(() => {
     if (!user) { router.push("/auth"); return; }
@@ -49,6 +65,14 @@ export default function ProfilePage() {
         pincode: data.pincode || "",
       });
     }
+    
+    // Fetch family members
+    const familyRes = await fetch("/api/family-members", { headers: { Authorization: `Bearer ${token}` } });
+    if (familyRes.ok) {
+      const familyData = await familyRes.json();
+      setFamilyMembers(familyData);
+    }
+    
     setLoading(false);
   };
 
@@ -67,6 +91,37 @@ export default function ProfilePage() {
       setTimeout(() => setSaveSuccess(false), 3000);
     }
     setSaving(false);
+  };
+
+  const handleSaveFamilyMember = async () => {
+    if (!familyForm.name) {
+      alert("Name is required");
+      return;
+    }
+    setSavingFamily(true);
+    const res = await fetch("/api/family-members", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(familyForm),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setFamilyMembers(prev => [data.member, ...prev]);
+      setShowFamilyModal(false);
+      setFamilyForm({ name: "", relation: "", dateOfBirth: "", bloodGroup: "", allergies: "", medicalHistory: "" });
+    }
+    setSavingFamily(false);
+  };
+
+  const handleDeleteFamilyMember = async (id: number) => {
+    if (!confirm("Are you sure you want to remove this family member?")) return;
+    const res = await fetch(`/api/family-members/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      setFamilyMembers(prev => prev.filter(m => m.id !== id));
+    }
   };
 
   if (!user || loading) {
@@ -253,9 +308,137 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
+
+            {/* Family Members Section */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 mt-6">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <Users size={20} className="text-blue-500" />
+                  <h3 className="font-semibold text-gray-800">Family Health Profiles</h3>
+                </div>
+                <button
+                  onClick={() => setShowFamilyModal(true)}
+                  className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition"
+                >
+                  <Plus size={14} /> Add Member
+                </button>
+              </div>
+
+              {familyMembers.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-gray-200 rounded-xl">
+                  <p className="text-gray-500 text-sm">No family members added yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {familyMembers.map(member => (
+                    <div key={member.id} className="border border-gray-100 rounded-xl p-4 flex justify-between items-start hover:border-blue-100 transition">
+                      <div>
+                        <h4 className="font-semibold text-gray-800">{member.name}</h4>
+                        <div className="flex flex-wrap gap-2 mt-2 text-xs text-gray-500">
+                          {member.relation && <span className="bg-gray-100 px-2 py-1 rounded-md">{member.relation}</span>}
+                          {member.bloodGroup && <span className="bg-red-50 text-red-600 px-2 py-1 rounded-md">Blood: {member.bloodGroup}</span>}
+                          {member.dateOfBirth && <span className="bg-gray-100 px-2 py-1 rounded-md">DOB: {member.dateOfBirth}</span>}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteFamilyMember(member.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Add Family Member Modal */}
+      {showFamilyModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 relative">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">Add Family Member</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  value={familyForm.name}
+                  onChange={(e) => setFamilyForm({ ...familyForm, name: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Relation</label>
+                  <input
+                    type="text"
+                    value={familyForm.relation}
+                    onChange={(e) => setFamilyForm({ ...familyForm, relation: e.target.value })}
+                    placeholder="e.g. Mother, Son"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Blood Group</label>
+                  <select
+                    value={familyForm.bloodGroup}
+                    onChange={(e) => setFamilyForm({ ...familyForm, bloodGroup: e.target.value })}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Select</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Date of Birth</label>
+                <input
+                  type="date"
+                  value={familyForm.dateOfBirth}
+                  onChange={(e) => setFamilyForm({ ...familyForm, dateOfBirth: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Allergies (if any)</label>
+                <input
+                  type="text"
+                  value={familyForm.allergies}
+                  onChange={(e) => setFamilyForm({ ...familyForm, allergies: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  onClick={() => setShowFamilyModal(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveFamilyMember}
+                  disabled={savingFamily || !familyForm.name}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {savingFamily ? "Saving..." : "Add Member"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );
